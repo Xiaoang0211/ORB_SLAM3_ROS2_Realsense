@@ -55,7 +55,7 @@ In Addition to the handshake example, we added the support for realsense d435i. 
 
 ## 2. Installation
 
-Follow the steps below to create the ```ros2_test``` workspace, install dependencies and build the package. Note, the workspace must be named ```ros2_test``` due to a HARDCODED path in the python node. I leave it to the developers to change this behavior as they see fit.
+Follow the steps below to create the ```orbslam3_ws``` workspace, install dependencies and build the package. Note, the workspace must be named ```orbslam3_ws``` due to a HARDCODED path in the python node. I leave it to the developers to change this behavior as they see fit.
 
 ```bash
 cd ~
