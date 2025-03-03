@@ -174,7 +174,7 @@ install (DIRECTORY include/
 )
 
 # Install our node and library
-install(TARGETS mono_node_cpp orb_slam3_lib
+install(TARGETS mono_node_cpp orb_slam3_lib realsense_subscriber
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -187,6 +187,7 @@ ament_export_include_directories(include)
 # Help downstream packages to find transitive dependencies
 ament_export_dependencies(
   orb_slam3_lib
+  realsense_subscriber
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 
