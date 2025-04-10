@@ -67,3 +67,21 @@ rosdep install -r --from-paths src --ignore-src -y --rosdistro humble
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install
 ```
+
+## Usage example
+
+First, run the cpp subscriber node:
+```bash
+ros2 run ros2_orb_slam3 replica_subscriber
+```
+With the default settings it runs in RGBD mode
+
+Then run the python publisher node:
+```bash
+ros2 run ros2_orb_slam3 replica_driver_node.py --ros-args -p replica_path:=<path_to_the_replica_v1_dataset> -p scene_name:=<target_room>
+```
+An example with room_0:
+s
+```bash
+ros2 run ros2_orb_slam3 replica_driver_node.py --ros-args -p replica_path:=/mnt/replica_v1/ -p scene_name:=room_0/
+```
