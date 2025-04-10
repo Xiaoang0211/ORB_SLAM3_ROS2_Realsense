@@ -16,11 +16,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
 
 // ROS2 messages
 #include <std_msgs/msg/header.hpp>
-#include "std_msgs/msg/float64.hpp"
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/bool.hpp>
 
@@ -67,32 +66,29 @@ private:
     std::string ackTopic = "";
 
     // sensor topics
-    std::string timestepTopic = "";
     std::string rgbImageTopic = "";
     std::string depthImageTopic = "";
 
     bool replica_py_driver_activated;
 
-    // publisher
+    // handshake publisher and subscriber
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr ack_publisher_;
-
-    // subscribers
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr replica_py_driver_sub_;
     
-    std::shared_ptr<message_filters::Subscriber<std_msgs::msg::Float64>> timestep_sub_;
+    // sensor subscribers
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> rgb_image_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> depth_image_sub_;
 
     // message synchronizer for rgb and depth images
-    using imageSyncPolicy = message_filters::sync_policies::ApproximateTime<std_msgs::msg::Float64,
-                                                                            sensor_msgs::msg::Image,
-                                                                            sensor_msgs::msg::Image>;
+    using imageSyncPolicy = message_filters::sync_policies::ExactTime<sensor_msgs::msg::Image,
+                                                                      sensor_msgs::msg::Image>;
     std::shared_ptr<message_filters::Synchronizer<imageSyncPolicy>> image_sync_;
 
+    // callback for node handshake
     void replica_driver_callback(const std_msgs::msg::Bool& msg);
-    // callback for synchronized messages
-    void imageCallback(const std_msgs::msg::Float64::ConstSharedPtr& timestep_msg,
-                       const sensor_msgs::msg::Image::ConstSharedPtr& rgb_image_msg,
+
+    // callback for synchronized sensor messages
+    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& rgb_image_msg,
                        const sensor_msgs::msg::Image::ConstSharedPtr& depth_image_msg);
     
     // ORB_SLAM3
@@ -103,9 +99,9 @@ private:
 
     // Helper functions
     template<typename SensorType>
-    double get_time_ns_double(const SensorType& msg) // msg is Float64
+    double get_time_ns_double(const SensorType& msg)
     {
-        return msg.data;
+        return msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec;
     }
     void InitializeVSLAM(std::string& configString);
     ORB_SLAM3::System::eSensor convertStringToSensorType(const std::string& str);

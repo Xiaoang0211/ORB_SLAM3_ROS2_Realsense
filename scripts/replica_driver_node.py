@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import sys # System specific modules
 import os # Operating specific functions
@@ -17,10 +18,11 @@ import ament_index_python.packages
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.time import Time
 
 # Import ROS2 message templates
 from sensor_msgs.msg import Image 
-from std_msgs.msg import String, Float64 
+from std_msgs.msg import String
 from std_msgs.msg import Bool
 from cv_bridge import CvBridge, CvBridgeError # Library to convert image messages to numpy array
 
@@ -30,7 +32,7 @@ class ReplicaDriver(Node):
         super().__init__(node_name) # Initializes the rclpy.Node class. It expects the name of the node
 
         # Initialize parameters to be passed from the command line (or launch file)
-        self.declare_parameter("replica_path", "/home/xiaoang/Mylab/replica_v1/")
+        self.declare_parameter("replica_path", "/home/xiaoang/MyLab/replica_v1/")
         self.declare_parameter("scene_name","room_0/")
 
         # Parse values sent by command line
@@ -77,7 +79,6 @@ class ReplicaDriver(Node):
         # Publisher to send RGB and depth images
         self.img_publisher_ = self.create_publisher(Image, self.image_pub_topic, 1)
         self.depth_publisher_ = self.create_publisher(Image, self.depth_pub_topic, 1)
-        self.timestamp_publisher_ = self.create_publisher(Float64, self.timestamp_pub_topic, 1)
 
         # Initialize work variables for main logic
         self.sequence_length = len(self.image_list)
@@ -92,8 +93,7 @@ class ReplicaDriver(Node):
         except ValueError:
             self.get_logger().info("Invalid input, using full sequence.")
             self.end_frame = self.sequence_length - 1
-
-        
+            
         self.curr_idx = self.start_frame
         
         self.timer = self.create_timer(1.0/20.0, self.timer_callback)
@@ -119,7 +119,7 @@ class ReplicaDriver(Node):
         """
             Returns the image and depth image list in ascending order
         """
-        self.img_list = natsort.natsorted(os.listdir(self.image_sequence_dir), reverse=False)
+        self.image_list = natsort.natsorted(os.listdir(self.image_sequence_dir), reverse=False)
         self.depth_list = natsort.natsorted(os.listdir(self.depth_sequence_dir), reverse=False)
         
         with open(self.timestamps_dir, 'r') as f:
@@ -133,20 +133,26 @@ class ReplicaDriver(Node):
         image_msg = Image()
         depth_msg = Image()
 
-        img_name = f"{self.curr_idx:06d}.jpg"
+        image_name = f"{self.curr_idx:06d}.jpg"
+        depth_name = f"{self.curr_idx:06d}.png"
                 
-        image_path = os.path.join(self.image_sequence_dir, img_name)
-        depth_path = os.path.join(self.depth_sequence_dir, img_name)
+        image_path = os.path.join(self.image_sequence_dir, image_name)
+        depth_path = os.path.join(self.depth_sequence_dir, depth_name)
         
-        image_msg = self.cv_bridge.cv2_to_imgmsg(cv2.imread(image_path), encoding="bgr8")
-        depth_msg = self.cv_bridge.cv2_to_imgmsg(cv2.imread(depth_path), encoding="mono16")
+        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+                
+        image_msg = self.cv_bridge.cv2_to_imgmsg(image, encoding="bgr8")
+        depth_msg = self.cv_bridge.cv2_to_imgmsg(depth, encoding="mono16")
         
-        # timestamp message
-        timestep_msg = Float64()
-        timestep_msg.data = self.timestamp_list[self.curr_idx]
-
+        # timestamps
+        timestep_ns = self.timestamp_list[self.curr_idx]
+        stamp = rclpy.time.Time(seconds=timestep_ns // 10**9, nanoseconds=timestep_ns % 10**9).to_msg()
+        
+        image_msg.header.stamp = stamp
+        depth_msg.header.stamp = stamp
+        
         try:
-            self.timestamp_publisher_.publish(timestep_msg) 
             self.img_publisher_.publish(image_msg)
             self.depth_publisher_.publish(depth_msg)
         except CvBridgeError as e:

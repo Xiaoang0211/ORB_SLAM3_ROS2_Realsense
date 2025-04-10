@@ -49,7 +49,7 @@ Node("replica_subscriber_node")
     RCLCPP_INFO(this->get_logger(), "\nReplica subscriber node started");
     replica_py_driver_activated = false;
 
-    this->declare_parameter("node_name_arg", "not_given"); // Name of this agent 
+    // this->declare_parameter("node_name_arg", "not_given"); // Name of this agent 
     this->declare_parameter("voc_file_arg", "file_not_set"); // Needs to be overriden with appropriate name  
     this->declare_parameter("settings_file_path_arg", "file_path_not_set"); // path to settings file  
 
@@ -59,14 +59,14 @@ Node("replica_subscriber_node")
     settingsFilePath = "file_not_set";
 
     //* Populate parameter values
-    rclcpp::Parameter param1 = this->get_parameter("node_name_arg");
-    nodeName = param1.as_string();
+    // rclcpp::Parameter param1 = this->get_parameter("node_name_arg");
+    // nodeName = param1.as_string();
     
-    rclcpp::Parameter param2 = this->get_parameter("voc_file_arg");
-    vocFilePath = param2.as_string();
+    rclcpp::Parameter param1 = this->get_parameter("voc_file_arg");
+    vocFilePath = param1.as_string();
 
-    rclcpp::Parameter param3 = this->get_parameter("settings_file_path_arg");
-    settingsFilePath = param3.as_string();
+    rclcpp::Parameter param2 = this->get_parameter("settings_file_path_arg");
+    settingsFilePath = param2.as_string();
 
     // set config file path for realsense camera
     if (vocFilePath == "file_not_set" || settingsFilePath == "file_not_set")
@@ -76,8 +76,9 @@ Node("replica_subscriber_node")
     }
 
     //* DEBUG print 
-    RCLCPP_INFO(this->get_logger(), "nodeName %s", nodeName.c_str());
     RCLCPP_INFO(this->get_logger(), "voc_file %s", vocFilePath.c_str());
+    RCLCPP_INFO(this->get_logger(), "settingsFilePath %s", settingsFilePath.c_str());
+
 
     // ROS2 message subscription
     // Quality of Service for sensor messages
@@ -89,7 +90,6 @@ Node("replica_subscriber_node")
     ackTopic = "/replica_subscriber_node/ack";
 
     // sensor topics
-    timestepTopic = "/replica_py_driver/timestep";
     rgbImageTopic = "/replica_py_driver/image";
     depthImageTopic = "/replica_py_driver/depth"; 
 
@@ -100,18 +100,15 @@ Node("replica_subscriber_node")
     ack_publisher_ = this->create_publisher<std_msgs::msg::String>(ackTopic, 10);
 
     // synchronized subscription for sensor data topics
-    timestep_sub_ = std::make_shared<message_filters::Subscriber<std_msgs::msg::Float64>>(this, timestepTopic, qos_profile);
     rgb_image_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(this, rgbImageTopic, qos_profile);
     depth_image_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(this, depthImageTopic, qos_profile);
 
     // Callback for rgb and depth images with synchronization
-    image_sync_ = std::make_shared<message_filters::Synchronizer<imageSyncPolicy>>(imageSyncPolicy(10), *timestep_sub_, 
-                                                                                                        *rgb_image_sub_,
+    image_sync_ = std::make_shared<message_filters::Synchronizer<imageSyncPolicy>>(imageSyncPolicy(10), *rgb_image_sub_,
                                                                                                         *depth_image_sub_);
                                                                                                     
     image_sync_->registerCallback(std::bind(&ReplicaSubscriber::imageCallback, this, std::placeholders::_1,
-                                                                                     std::placeholders::_2,
-                                                                                     std::placeholders::_3));
+                                                                                     std::placeholders::_2));
     
     RCLCPP_INFO(this->get_logger(), "Waiting for finishing handshake ......");
 }
@@ -158,12 +155,11 @@ void ReplicaSubscriber::InitializeVSLAM(std::string& configString)
     RCLCPP_INFO(this->get_logger(), "ORB-SLAM3: %s initialized", mode.c_str());
 }
 
-void ReplicaSubscriber::imageCallback(const std_msgs::msg::Float64::ConstSharedPtr& timestep_msg,
-                                      const sensor_msgs::msg::Image::ConstSharedPtr& rgb_image_msg,
+
+void ReplicaSubscriber::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& rgb_image_msg,
                                       const sensor_msgs::msg::Image::ConstSharedPtr& depth_image_msg)
 {   
-    // we use the timestamp of the rgb image as input to orb slam3
-    timeStep = get_time_ns_double<std_msgs::msg::Float64>(*timestep_msg);
+    timeStep = get_time_ns_double<sensor_msgs::msg::Image>(*rgb_image_msg);
 
     // rgb and depth image data
     cv_bridge::CvImagePtr rgb_ptr, depth_ptr;
